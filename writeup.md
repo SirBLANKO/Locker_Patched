@@ -127,9 +127,9 @@ If the password update fails, the transaction restores the token instead of cons
 
 **Observed behavior after the patch:**
 
-![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191441.png)
+![After patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191441.png)
 
-![Before patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20193643.png)
+![After patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20193643.png)
 
 ## Exact test requests
 
