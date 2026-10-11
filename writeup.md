@@ -127,7 +127,9 @@ If the password update fails, the transaction restores the token instead of cons
 
 **Observed behavior after the patch:**
 
-The calculated advisor token was rejected, and the attempted replacement password could not sign in. A valid issued token changed the password once; replay, another account's token, and previous-day tokens were rejected.
+![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191441.png)
+
+![Before patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20193643.png)
 
 ## Exact test requests
 
