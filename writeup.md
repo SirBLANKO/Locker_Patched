@@ -22,7 +22,15 @@ Use the original application with a fresh, disposable database. These steps chan
 
 **Observed behavior before the patch:**
 
-The advisor had no reset-token row. An incorrect token was rejected, but the calculated token changed the password without /forgot. Signing in displayed LOCKER-4410. The token could also be reused.
+![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20190932.png)
+
+![Before patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191010.png)
+
+![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191441.png)
+
+![Before patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191453.png)
+
+![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191227.png)
 
 **Cause:** The app treats a publicly reproducible hash as proof that a user received a reset link. The missing-record fallback accepts that hash even when no link was issued. Despite its name, consume_reset_token() does not delete the token.
 
