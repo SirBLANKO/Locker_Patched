@@ -4,7 +4,7 @@
 
 **Problem:** Reset tokens are calculated from an email address and the current UTC date. The app accepts this predictable token even without a reset-token row in SQLite.
 
-**Impact:** An unauthenticated visitor can change another account's password without knowing its current password or receiving a reset email. In the local test, resetting advisor@campus.edu allowed sign-in and exposed the advisor's private vault secret, LOCKER-4410.
+**Impact:** An unauthenticated visitor can change another account's password without knowing its current password or receiving a reset email. In the local test, resetting advisor@campus.edu allowed si[...]
 
 **Live Demo:** Not deployed yet.
 
@@ -32,7 +32,7 @@ Use the original application with a fresh, disposable database. These steps chan
 
 ![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191227.png)
 
-**Cause:** The app treats a publicly reproducible hash as proof that a user received a reset link. The missing-record fallback accepts that hash even when no link was issued. Despite its name, consume_reset_token() does not delete the token.
+**Cause:** The app treats a publicly reproducible hash as proof that a user received a reset link. The missing-record fallback accepts that hash even when no link was issued. Despite its name, consume[...]
 
 ## Code Examples
 
@@ -123,7 +123,7 @@ The reset route in public/index.php also wraps token consumption and the passwor
 
 If the password update fails, the transaction restores the token instead of consuming it without changing the password.
 
-**Fix:** Replaced deterministic tokens with random, account-bound, same-day tokens stored as digests. Removed the missing-record acceptance and added single-use redemption with a transactional password update.
+**Fix:** Replaced deterministic tokens with random, account-bound, same-day tokens stored as digests. Removed the missing-record acceptance and added single-use redemption with a transactional passwor[...]
 
 **Observed behavior after the patch:**
 
@@ -203,6 +203,6 @@ The predictable password-reset vulnerability in Locker has been patched. The fix
 
 **Verification status:**
 
-All 38 automated local checks passed: PHP syntax, original-app reproduction, reset acceptance and rejection, and normal functionality. These were programmatic HTTP and database checks, not manual browser tests.
+All 38 automated local checks passed: PHP syntax, original-app reproduction, reset acceptance and rejection, and normal functionality. These were programmatic HTTP and database checks, not manual brow[...]
 
-The patch preserves existing sign-in and vault ownership behavior. Passwords still use the original unsalted SHA-256 scheme; upgrading password storage is separate work. This report covers the supplied Locker-student.zip source and this reset defect, without claiming that broader application security has been assessed.
+The patch preserves existing sign-in and vault ownership behavior. Passwords still use the original unsalted SHA-256 scheme; upgrading password storage is separate work. This report covers the supplie[...]
