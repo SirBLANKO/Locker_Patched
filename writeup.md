@@ -15,8 +15,7 @@ Use the original application with a fresh, disposable database. These steps chan
 1. From the original Locker folder, run:
    DATABASE_PATH=./data/reproduction.db php -S 127.0.0.1:3000 -t public public/router.php
 2. Open http://localhost:3000.
-3. Do not click “Forgot password” or sign in.
-4. Calculate the advisor’s token:
+4. Calculate the advisor’s token in cmd:
    php -r 'echo sha1("advisor@campus.edu|" . gmdate("Y-m-d")), PHP_EOL;'
 5. Open http://localhost:3000/reset, enter advisor@campus.edu, paste the calculated token, and set the password to Updated123!.
 6. Sign in as advisor@campus.edu with Updated123! and observe the advisor hold containing LOCKER-4410.
