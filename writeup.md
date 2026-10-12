@@ -10,7 +10,7 @@ Live demo: Not deployed yet.
 
 ## Steps to reproduce
 
-Use the original application with a fresh, disposable database. These steps change the seeded advisor account’s password.
+These steps change the seeded advisor account’s password.
 
 1. From the original Locker folder, run:
    DATABASE_PATH=./data/reproduction.db php -S 127.0.0.1:3000 -t public public/router.php
