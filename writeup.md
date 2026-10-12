@@ -191,5 +191,3 @@ Key improvements:
 
 Verification status:
 All 38 automated local checks passed. These checks covered PHP syntax, reproduction of the original issue, reset acceptance and rejection cases, and normal application behavior. The validation used local HTTP and SQLite checks rather than manual browser-only testing.
-
-This report covers the provided Locker-student.zip source and the reset defect identified here. It does not claim a full review of all application security or broader system behavior.
