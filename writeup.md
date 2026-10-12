@@ -1,42 +1,36 @@
 # Locker: Predictable password-reset tokens
 
-**Location:** The reset_token_for() and consume_reset_token() functions in src/crypto.php, called by POST /reset in public/index.php.
+Location: The reset_token_for() and consume_reset_token() functions in src/crypto.php, used by POST /reset in public/index.php.
 
-**Problem:** Reset tokens are calculated from an email address and the current UTC date. The app accepts this predictable token even without a reset-token row in SQLite.
+Problem: Reset tokens are based on the email address and the current UTC date. The app accepts that predictable token even when there is no reset-token row in SQLite.
 
-**Impact:** An unauthenticated visitor can change another account's password without knowing its current password or receiving a reset email. In the local test, resetting advisor@campus.edu allowed si[...]
+Impact: An unauthenticated visitor can change another account’s password without knowing the current password or receiving a reset email. In the local reproduction, resetting advisor@campus.edu allowed sign-in and exposed the advisor’s private vault secret, LOCKER-4410.
 
-**Live Demo:** Not deployed yet.
+Live demo: Not deployed yet.
 
-## Steps to reproduce:
+## Steps to reproduce
 
-Use the original application with a fresh, disposable database. These steps change the seeded advisor account's password.
+Use the original application with a fresh, disposable database. These steps change the seeded advisor account’s password.
 
-1. From the original Locker folder, run `DATABASE_PATH=./data/reproduction.db php -S 127.0.0.1:3000 -t public public/router.php` and open http://localhost:3000.
-2. Do not click “Forgot password” or sign in.
-3. Calculate the advisor's token using `php -r 'echo sha1("advisor@campus.edu|" . gmdate("Y-m-d")), PHP_EOL;'`.
-4. Open http://localhost:3000/reset, enter advisor@campus.edu, paste the calculated token, and set the password to Updated123!.
-5. Sign in as advisor@campus.edu with Updated123! and observe the advisor hold containing LOCKER-4410.
+1. From the original Locker folder, run:
+   DATABASE_PATH=./data/reproduction.db php -S 127.0.0.1:3000 -t public public/router.php
+2. Open http://localhost:3000.
+3. Do not click “Forgot password” or sign in.
+4. Calculate the advisor’s token:
+   php -r 'echo sha1("advisor@campus.edu|" . gmdate("Y-m-d")), PHP_EOL;'
+5. Open http://localhost:3000/reset, enter advisor@campus.edu, paste the calculated token, and set the password to Updated123!.
+6. Sign in as advisor@campus.edu with Updated123! and observe the advisor hold containing LOCKER-4410.
 
-**Expected behavior:** A password change requires a valid reset token actually issued for that account. An email address and the date should not authorize a reset.
+Expected behavior: A password change should only work when a valid reset token was actually issued for that account. An email address and the date should not authorize a reset.
 
-**Observed behavior before the patch:**
+Observed behavior before the patch:
+The reset succeeded without a prior reset request. The attacker could set a new password for another user and sign in with it.
 
-![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20190932.png)
+Cause: The app treats a publicly reproducible hash as proof that a user received a reset link. The missing-record fallback accepts that hash even when no link was issued. Despite its name, consume_reset_token() does not actually delete the token.
 
-![Before patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191010.png)
+## Code examples
 
-![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191441.png)
-
-![Before patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191453.png)
-
-![Before patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191227.png)
-
-**Cause:** The app treats a publicly reproducible hash as proof that a user received a reset link. The missing-record fallback accepts that hash even when no link was issued. Despite its name, consume[...]
-
-## Code Examples
-
-### Vulnerable Code (Before Patch)
+### Vulnerable code before the patch
 
 In src/crypto.php:
 
@@ -65,9 +59,9 @@ function consume_reset_token(string $email, string $token): bool
 }
 ```
 
-The token has no secret input. The `return true` fallback accepts it without prior issuance. public/index.php then calls set_user_password() for the supplied email.
+The token has no secret input. The `return true` fallback accepts it without prior issuance. Then public/index.php calls set_user_password() for the supplied email.
 
-### Patched Code (After Fix)
+### Patched code after the fix
 
 In src/crypto.php:
 
@@ -88,7 +82,6 @@ function consume_reset_token(string $email, string $token): bool
     if (!preg_match('/\A[0-9a-f]{64}\z/', $token)) {
         return false;
     }
-    // Delete only an issued, matching token from today (SQLite dates use UTC).
     $stmt = db()->prepare(
         "DELETE FROM reset_tokens
          WHERE email = ? AND token = ?
@@ -99,7 +92,7 @@ function consume_reset_token(string $email, string $token): bool
 }
 ```
 
-The patch stores a random token's SHA-256 digest. Reset requires a matching email and current-day record. Deleting it prevents reuse; reissuing replaces the previous token.
+The patch stores a random token as a SHA-256 digest. Reset now requires both a matching email and a current-day record. Deleting it prevents reuse, and issuing again replaces the previous token.
 
 The reset route in public/index.php also wraps token consumption and the password update in a transaction:
 
@@ -123,25 +116,22 @@ The reset route in public/index.php also wraps token consumption and the passwor
 
 If the password update fails, the transaction restores the token instead of consuming it without changing the password.
 
-**Fix:** Replaced deterministic tokens with random, account-bound, same-day tokens stored as digests. Removed the missing-record acceptance and added single-use redemption with a transactional passwor[...]
+Fix: Replaced deterministic tokens with random, account-bound, same-day tokens stored as digests. Removed the missing-record acceptance and added single-use redemption with a transactional password update.
 
-**Observed behavior after the patch:**
-
-![After patch screenshot 1](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20191441.png)
-
-![After patch screenshot 2](https://github.com/SirBLANKO/Locker_Patched/blob/main/Screenshot%202026-10-11%20193643.png)
+Observed behavior after the patch:
+The forged token no longer works. A reset only succeeds when the token matches a record issued for the email on the current day.
 
 ## Exact test requests
 
 Run from the application folder against disposable original and patched databases.
 
-**Calculate the original token:**
+Calculate the original token:
 
 ```bash
 TOKEN=$(php -r 'echo sha1("advisor@campus.edu|" . gmdate("Y-m-d"));')
 ```
 
-**Reset without requesting a link first:**
+Reset without requesting a link first:
 
 ```bash
 curl --data-urlencode 'email=advisor@campus.edu' \
@@ -150,7 +140,7 @@ curl --data-urlencode 'email=advisor@campus.edu' \
   http://localhost:3000/reset
 ```
 
-**Sign in with the attempted replacement password:**
+Sign in with the attempted replacement password:
 
 ```bash
 curl -L -c cookies.txt -b cookies.txt \
@@ -159,21 +149,21 @@ curl -L -c cookies.txt -b cookies.txt \
   http://localhost:3000/login
 ```
 
-**Valid reset on the patched local application:**
+Valid reset on the patched local application:
 
-Campus mail is a stub. Issue a local test token through PHP CLI using the server's DATABASE_PATH:
+Campus mail is a stub, so issue a local test token through PHP CLI using the server’s DATABASE_PATH:
 
 ```bash
 php -r 'require "src/bootstrap.php"; echo issue_reset_token("devon@campus.edu"), PHP_EOL;'
 ```
 
-Paste the returned token into /reset with devon@campus.edu and a new password. The database contains its digest, which cannot be used as the token.
+Paste the returned token into /reset with devon@campus.edu and a new password. The database stores only the digest of that random token, not the token itself.
 
 ## Hosted testing
 
-No deployment was tested. Results came from local PHP/SQLite instances with disposable databases. Campus-mail delivery still needs implementation.
+No deployment was tested. Results came from local PHP/SQLite runs with disposable databases. Campus-mail delivery still needs implementation.
 
-## Normal functionality checks:
+## Normal functionality checks
 
 | Test | Actual result |
 |---|---|
@@ -188,21 +178,19 @@ No deployment was tested. Results came from local PHP/SQLite instances with disp
 | Concurrent token redemption | Exactly one of two database connections redeemed the token. |
 | Register, sign in, and sign out | .edu registration worked; other email domains were rejected. Signing out hid secrets and blocked protected pages. |
 | Create and view a secret | The saved secret appeared and remained after refresh and a new sign-in. |
-| Vault ownership | Devon could not see Maya's, the advisor's, or the new student's secrets. |
+| Vault ownership | Devon could not see Maya’s, the advisor’s, or the new student’s secrets. |
 
 ## Summary
 
-The predictable password-reset vulnerability in Locker has been patched. The fix replaces tokens derived from public information with random tokens that must match an issued database record.
+This vulnerability in Locker was caused by predictable reset tokens that could be derived from public information. The fix replaces those values with random tokens that must match a database record for the same account and the current UTC day.
 
-**Key improvements:**
-
-- Reset tokens cannot be calculated from an email address and date.
-- Each token belongs to one account and expires at the end of its UTC calendar day.
-- Successful reset consumes the token, preventing reuse.
+Key improvements:
+- Reset tokens can no longer be calculated from an email address and date.
+- Each token belongs to one account and expires at the end of its UTC day.
+- Successful resets consume the token so it cannot be replayed.
 - The transaction keeps token consumption and the password update together.
 
-**Verification status:**
+Verification status:
+All 38 automated local checks passed. These checks covered PHP syntax, reproduction of the original issue, reset acceptance and rejection cases, and normal application behavior. The validation used local HTTP and SQLite checks rather than manual browser-only testing.
 
-All 38 automated local checks passed: PHP syntax, original-app reproduction, reset acceptance and rejection, and normal functionality. These were programmatic HTTP and database checks, not manual brow[...]
-
-The patch preserves existing sign-in and vault ownership behavior. Passwords still use the original unsalted SHA-256 scheme; upgrading password storage is separate work. This report covers the supplie[...]
+This report covers the provided Locker-student.zip source and the reset defect identified here. It does not claim a full review of all application security or broader system behavior.
